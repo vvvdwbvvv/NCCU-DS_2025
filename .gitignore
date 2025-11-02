@@ -3,4 +3,6 @@
 *.pdf
 DS_Store
 *.iml
+*.json
+*.png
 out/
