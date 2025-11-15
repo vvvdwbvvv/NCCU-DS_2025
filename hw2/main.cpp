@@ -7,6 +7,10 @@ struct Node {
     int score;
     Node* left = nullptr;
     Node* right = nullptr;
+
+    Node() = default;
+    Node(int idValue, int scoreValue, Node* leftNode = nullptr, Node* rightNode = nullptr)
+        : id(idValue), score(scoreValue), left(leftNode), right(rightNode) {}
 };
 
 using addr = Node*;
@@ -17,6 +21,10 @@ struct AVLNode {
     int height = 1;
     AVLNode* left = nullptr;
     AVLNode* right = nullptr;
+
+    AVLNode() = default;
+    AVLNode(int idValue, int scoreValue, AVLNode* leftNode = nullptr, AVLNode* rightNode = nullptr)
+        : id(idValue), score(scoreValue), height(1), left(leftNode), right(rightNode) {}
 };
 
 using avl_addr = AVLNode*;
@@ -78,7 +86,7 @@ public:
 
 private:
     static addr CreateBST(int id, int score) {
-        return new Node{id, score, nullptr, nullptr};
+        return new Node(id, score);
     }
 };
 
@@ -159,7 +167,7 @@ public:
 
 private:
     static avl_addr createRoot(int id, int score) {
-        return new AVLNode{id, score};
+        return new AVLNode(id, score);
     }
 
     static int height(avl_addr node) {
@@ -207,11 +215,27 @@ public:
 
 int main() {
     BST bst;
+    addr bstRoot = nullptr;
+    bstRoot = bst.InsertBST(10, 80, bstRoot);
+    bstRoot = bst.InsertBST(5, 90, bstRoot);
+    bstRoot = bst.InsertBST(15, 70, bstRoot);
+    bstRoot = bst.InsertBST(5, 95, bstRoot);  // duplicate id to test averaging
+    bst.PrintBST(bstRoot);
+    std::cout << "BST Height: " << bst.HeightBST(bstRoot) << '\n';
+    std::cout << "BST AVG for id 5: " << bst.SearchAVGBST(bstRoot, 5) << '\n';
+
     AVLTree avl;
+    avl_addr avlRoot = nullptr;
+    avlRoot = avl.InsertAVLTree(10, 80, avlRoot);
+    avlRoot = avl.InsertAVLTree(5, 90, avlRoot);
+    avlRoot = avl.InsertAVLTree(15, 70, avlRoot);
+    avlRoot = avl.InsertAVLTree(5, 95, avlRoot);
+    avl.PrintAVLTree(avlRoot);
+    std::cout << "AVL Height: " << avl.HeightAVLTree(avlRoot) << '\n';
+    std::cout << "AVL AVG for id 5: " << avl.SearchAVGAVLTree(avlRoot, 5) << '\n';
+
     Treap treap;
     SkipList skipList;
-    (void)bst;
-    (void)avl;
     (void)treap;
     (void)skipList;
     return 0;
