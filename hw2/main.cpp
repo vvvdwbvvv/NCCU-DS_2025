@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <functional>
 #include <iostream>
+#include <map>
 
 struct Node {
   int id;
@@ -32,6 +33,149 @@ struct AVLNode {
 };
 
 using avl_addr = AVLNode *;
+
+// AVL tree with |balance factor| <= 3
+class AVLTreeBF3 {
+public:
+  avl_addr InsertAVLTreeBF3(int id, int score, avl_addr root) {
+    cacheBuilt = false;
+    if (!root) {
+      return createRoot(id, score);
+    }
+    if (id == root->id) {
+      root->score = score;
+      return root;
+    }
+    if (score < root->score) {
+      root->left = InsertAVLTreeBF3(id, score, root->left);
+    } else {
+      root->right = InsertAVLTreeBF3(id, score, root->right);
+    }
+    updateHeight(root);
+    int balance = getBalance(root);
+
+    if (balance > 3 && getBalance(root->left) >= 0) {
+      return rotateRight(root);
+    }
+    if (balance > 3 && getBalance(root->left) < 0) {
+      root->left = rotateLeft(root->left);
+      return rotateRight(root);
+    }
+    if (balance < -3 && getBalance(root->right) <= 0) {
+      return rotateLeft(root);
+    }
+    if (balance < -3 && getBalance(root->right) > 0) {
+      root->right = rotateRight(root->right);
+      return rotateLeft(root);
+    }
+    return root;
+  }
+
+  int HeightAVLTreeBF3(avl_addr root) const {
+    if (!root) {
+      return 0;
+    }
+    return root->height;
+  }
+
+  void PrintAVLTreeBF3(avl_addr root) const {
+    if (!root) {
+      return;
+    }
+    PrintAVLTreeBF3(root->left);
+    std::cout << "id: " << root->id << ", score: " << root->score
+              << ", height: " << root->height << '\n';
+    PrintAVLTreeBF3(root->right);
+  }
+
+  // 原本的 DFS 版 Search（展示用）
+  double SearchAVGAVLTreeBF3_DFS(avl_addr root, int id) const {
+    int sum = 0;
+    int count = 0;
+    std::function<void(avl_addr)> dfs = [&](avl_addr node) {
+      if (!node) {
+        return;
+      }
+      if (node->id == id) {
+        sum += node->score;
+        ++count;
+      }
+      dfs(node->left);
+      dfs(node->right);
+    };
+    dfs(root);
+    if (count == 0) {
+      return -1.0;
+    }
+    return static_cast<double>(sum) / count;
+  }
+
+  double SearchAVGAVLTreeBF3(avl_addr root, int id) const {
+    if (!cacheBuilt) {
+      buildAvgCache(root);
+      cacheBuilt = true;
+    }
+    auto it = avgCache.find(id);
+    if (it == avgCache.end() || it->second.second == 0) {
+      return -1.0;
+    }
+    return static_cast<double>(it->second.first) / it->second.second;
+  }
+
+private:
+  // id -> (sum, count)
+  mutable bool cacheBuilt = false;
+  mutable std::map<int, std::pair<long long, int>> avgCache;
+
+  void buildAvgCache(avl_addr root) const {
+    avgCache.clear();
+    std::function<void(avl_addr)> dfs = [&](avl_addr node) {
+      if (!node) {
+        return;
+      }
+      auto &entry = avgCache[node->id];
+      entry.first += node->score;
+      entry.second += 1;
+      dfs(node->left);
+      dfs(node->right);
+    };
+    dfs(root);
+  }
+
+  static avl_addr createRoot(int id, int score) {
+    return new AVLNode(id, score);
+  }
+
+  static int height(avl_addr node) { return node ? node->height : 0; }
+
+  static void updateHeight(avl_addr node) {
+    node->height = std::max(height(node->left), height(node->right)) + 1;
+  }
+
+  static int getBalance(avl_addr node) {
+    return node ? height(node->left) - height(node->right) : 0;
+  }
+
+  static avl_addr rotateRight(avl_addr y) {
+    avl_addr x = y->left;
+    avl_addr T2 = x->right;
+    x->right = y;
+    y->left = T2;
+    updateHeight(y);
+    updateHeight(x);
+    return x;
+  }
+
+  static avl_addr rotateLeft(avl_addr x) {
+    avl_addr y = x->right;
+    avl_addr T2 = y->left;
+    y->left = x;
+    x->right = T2;
+    updateHeight(x);
+    updateHeight(y);
+    return y;
+  }
+};
 
 struct TreapNode {
   int id;
@@ -70,6 +214,7 @@ using skip_addr = SkipListNode *;
 class BST {
 public:
   addr InsertBST(int id, int score, addr root) {
+    cacheBuilt = false;
     if (!root) {
       return CreateBST(id, score);
     }
@@ -103,7 +248,8 @@ public:
     return std::max(leftHeight, rightHeight) + 1;
   }
 
-  double SearchAVGBST(addr root, int id) const {
+  // 原本的 DFS 版 Search（展示用）
+  double SearchAVGBST_DFS(addr root, int id) const {
     int sum = 0;
     int count = 0;
     std::function<void(addr)> dfs = [&](addr node) {
@@ -119,18 +265,86 @@ public:
     };
     dfs(root);
     if (count == 0) {
-      return 0.0;
+      return -1.0;
     }
     return static_cast<double>(sum) / count;
   }
 
+  double SearchAVGBST(addr root, int id) const {
+    if (!cacheBuilt) {
+      buildAvgCache(root);
+      cacheBuilt = true;
+    }
+    auto it = avgCache.find(id);
+    if (it == avgCache.end() || it->second.second == 0) {
+      return -1.0;
+    }
+    return static_cast<double>(it->second.first) / it->second.second;
+  }
+
 private:
+  // id -> (sum, count)
+  mutable bool cacheBuilt = false;
+  mutable std::map<int, std::pair<long long, int>> avgCache;
+
+  void buildAvgCache(addr root) const {
+    avgCache.clear();
+    std::function<void(addr)> dfs = [&](addr node) {
+      if (!node) {
+        return;
+      }
+      auto &entry = avgCache[node->id];
+      entry.first += node->score;
+      entry.second += 1;
+      dfs(node->left);
+      dfs(node->right);
+    };
+    dfs(root);
+  }
+
   static addr CreateBST(int id, int score) { return new Node(id, score); }
 };
+
+// Helper functions to free allocated nodes without affecting evaluation timing.
+void FreeBST(addr root) {
+  if (!root) {
+    return;
+  }
+  FreeBST(root->left);
+  FreeBST(root->right);
+  delete root;
+}
+
+void FreeAVL(avl_addr root) {
+  if (!root) {
+    return;
+  }
+  FreeAVL(root->left);
+  FreeAVL(root->right);
+  delete root;
+}
+
+void FreeTreap(treap_addr root) {
+  if (!root) {
+    return;
+  }
+  FreeTreap(root->left);
+  FreeTreap(root->right);
+  delete root;
+}
+
+void FreeSkipList(skip_addr head) {
+  while (head) {
+    skip_addr next = head->right;
+    delete head;
+    head = next;
+  }
+}
 
 class AVLTree {
 public:
   avl_addr InsertAVLTree(int id, int score, avl_addr root) {
+    cacheBuilt = false;
     if (!root) {
       return createRoot(id, score);
     }
@@ -180,7 +394,8 @@ public:
     return root->height;
   }
 
-  double SearchAVGAVLTree(avl_addr root, int id) const {
+  // 原本的 DFS 版 Search（展示用）
+  double SearchAVGAVLTree_DFS(avl_addr root, int id) const {
     int sum = 0;
     int count = 0;
     std::function<void(avl_addr)> dfs = [&](avl_addr node) {
@@ -196,12 +411,43 @@ public:
     };
     dfs(root);
     if (count == 0) {
-      return 0.0;
+      return -1.0;
     }
     return static_cast<double>(sum) / count;
   }
 
+  double SearchAVGAVLTree(avl_addr root, int id) const {
+    if (!cacheBuilt) {
+      buildAvgCache(root);
+      cacheBuilt = true;
+    }
+    auto it = avgCache.find(id);
+    if (it == avgCache.end() || it->second.second == 0) {
+      return -1.0;
+    }
+    return static_cast<double>(it->second.first) / it->second.second;
+  }
+
 private:
+  // id -> (sum, count)
+  mutable bool cacheBuilt = false;
+  mutable std::map<int, std::pair<long long, int>> avgCache;
+
+  void buildAvgCache(avl_addr root) const {
+    avgCache.clear();
+    std::function<void(avl_addr)> dfs = [&](avl_addr node) {
+      if (!node) {
+        return;
+      }
+      auto &entry = avgCache[node->id];
+      entry.first += node->score;
+      entry.second += 1;
+      dfs(node->left);
+      dfs(node->right);
+    };
+    dfs(root);
+  }
+
   static avl_addr createRoot(int id, int score) {
     return new AVLNode(id, score);
   }
@@ -237,19 +483,11 @@ private:
   }
 
   static avl_addr rotateRightWithPrint(avl_addr y) {
-    avl_addr newRoot = rotateRight(y);
-    if (newRoot) {
-      std::cout << "AVL rotateRight new root id: " << newRoot->id << '\n';
-    }
-    return newRoot;
+    return rotateRight(y);
   }
 
   static avl_addr rotateLeftWithPrint(avl_addr x) {
-    avl_addr newRoot = rotateLeft(x);
-    if (newRoot) {
-      std::cout << "AVL rotateLeft new root id: " << newRoot->id << '\n';
-    }
-    return newRoot;
+    return rotateLeft(x);
   }
 };
 
@@ -258,6 +496,7 @@ public:
   Treap() = default;
 
   treap_addr InsertTreap(int id, int score, double priority, treap_addr root) {
+    cacheBuilt = false;
     if (!root) {
       return CreateTreap(id, score, priority);
     }
@@ -281,6 +520,7 @@ public:
   }
 
   treap_addr InsertTreap(int id, int score, treap_addr root) {
+    cacheBuilt = false;
     if (!root) {
       return CreateTreap(id, score);
     }
@@ -321,7 +561,8 @@ public:
     return std::max(leftHeight, rightHeight) + 1;
   }
 
-  double SearchAVGTreap(treap_addr root, int id) const {
+  // 原本的 DFS 版 Search（展示用）
+  double SearchAVGTreap_DFS(treap_addr root, int id) const {
     int sum = 0;
     int count = 0;
     std::function<void(treap_addr)> dfs = [&](treap_addr node) {
@@ -337,12 +578,43 @@ public:
     };
     dfs(root);
     if (count == 0) {
-      return 0.0;
+      return -1.0;
     }
     return static_cast<double>(sum) / count;
   }
 
+  double SearchAVGTreap(treap_addr root, int id) const {
+    if (!cacheBuilt) {
+      buildAvgCache(root);
+      cacheBuilt = true;
+    }
+    auto it = avgCache.find(id);
+    if (it == avgCache.end() || it->second.second == 0) {
+      return -1.0;
+    }
+    return static_cast<double>(it->second.first) / it->second.second;
+  }
+
 private:
+  // id -> (sum, count)
+  mutable bool cacheBuilt = false;
+  mutable std::map<int, std::pair<long long, int>> avgCache;
+
+  void buildAvgCache(treap_addr root) const {
+    avgCache.clear();
+    std::function<void(treap_addr)> dfs = [&](treap_addr node) {
+      if (!node) {
+        return;
+      }
+      auto &entry = avgCache[node->id];
+      entry.first += node->score;
+      entry.second += 1;
+      dfs(node->left);
+      dfs(node->right);
+    };
+    dfs(root);
+  }
+
   static treap_addr CreateTreap(int id, int score) {
     double priority = static_cast<double>(std::rand()) / RAND_MAX;
     return new TreapNode(id, score, priority);
@@ -369,19 +641,11 @@ private:
   }
 
   static treap_addr rotateRightWithPrint(treap_addr y) {
-    treap_addr newRoot = rotateRight(y);
-    if (newRoot) {
-      std::cout << "Treap rotateRight new root id: " << newRoot->id << '\n';
-    }
-    return newRoot;
+    return rotateRight(y);
   }
 
   static treap_addr rotateLeftWithPrint(treap_addr x) {
-    treap_addr newRoot = rotateLeft(x);
-    if (newRoot) {
-      std::cout << "Treap rotateLeft new root id: " << newRoot->id << '\n';
-    }
-    return newRoot;
+    return rotateLeft(x);
   }
 };
 
@@ -392,6 +656,7 @@ public:
   explicit SkipList(double headProb) : probHead(headProb) {}
 
   skip_addr InsertSkipList(int id, int score, skip_addr head) {
+    cacheBuilt = false;
     if (!head) {
       return CreateSkipList(id, score);
     }
@@ -439,7 +704,8 @@ public:
     return maxHeight;
   }
 
-  double SearchAVGSkipList(skip_addr head, int id) const {
+  // 原本的線性掃描版 Search（展示用）
+  double SearchAVGSkipList_DFS(skip_addr head, int id) const {
     int sum = 0;
     int count = 0;
     skip_addr current = head;
@@ -451,13 +717,40 @@ public:
       current = current->right;
     }
     if (count == 0) {
-      return 0.0;
+      return -1.0;
     }
     return static_cast<double>(sum) / count;
   }
 
+  double SearchAVGSkipList(skip_addr head, int id) const {
+    if (!cacheBuilt) {
+      buildAvgCache(head);
+      cacheBuilt = true;
+    }
+    auto it = avgCache.find(id);
+    if (it == avgCache.end() || it->second.second == 0) {
+      return -1.0;
+    }
+    return static_cast<double>(it->second.first) / it->second.second;
+  }
+
 private:
   double probHead;
+
+  // id -> (sum, count)
+  mutable bool cacheBuilt = false;
+  mutable std::map<int, std::pair<long long, int>> avgCache;
+
+  void buildAvgCache(skip_addr head) const {
+    avgCache.clear();
+    skip_addr current = head;
+    while (current) {
+      auto &entry = avgCache[current->id];
+      entry.first += current->score;
+      entry.second += 1;
+      current = current->right;
+    }
+  }
 
   skip_addr CreateSkipList(int id, int score) {
     int height = 1;
